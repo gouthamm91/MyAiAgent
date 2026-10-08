@@ -1,0 +1,10 @@
+# --- Core Dependencies (All Platforms) V1.0.1 ---
+ollama>=0.1.0
+
+# --- Windows-Only Dependencies ---
+# Installs pywin32 only on Windows machines
+pywin32>=306; sys_platform == 'win32'
+
+# --- macOS / Linux-Only Dependencies ---
+# Installs pynput for global key monitoring fallback on macOS/Linux
+pynput>=1.7.6; sys_platform != 'win32'
