@@ -1,1 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="J.A.R.V.I.S. — Personal Artificial Intelligence System. Advanced AI agent command console.">
+    <title>J.A.R.V.I.S. — Personal Artificial Intelligence System</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2303070B'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%2300D9FF' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2300D9FF'/%3E%3C/svg%3E">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hud.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#user-input">Skip to command input</a>
+
+<div id="app" data-agent-state="idle">
+
+    <!-- ==================== TOP SYSTEM BAR ==================== -->
+    <header id="topbar">
+        <div class="tb-group tb-left">
+            <button class="icon-btn mobile-only" id="nav-toggle" data-action="toggle-nav"
+                    aria-label="Open navigation menu" aria-expanded="false" aria-controls="left-nav" title="Navigation">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="brand">
+                <span class="brand-hex" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <polygon points="16,2 28,9 28,23 16,30 4,23 4,9"/>
+                        <circle cx="16" cy="16" r="5.5"/>
+                        <circle cx="16" cy="16" r="1.6" fill="currentColor" stroke="none"/>
+                    </svg>
+                </span>
+                <span class="brand-text">
+                    <span class="brand-name">J.A.R.V.I.S.</span>
+                    <span class="brand-sub">PERSONAL ARTIFICIAL INTELLIGENCE SYSTEM</span>
+                </span>
+            </div>
+            <span class="mode-badge" id="mode-badge" title="Agent operating mode">BUILD</span>
+        </div>
+
+        <div class="tb-group tb-center" role="group" aria-label="Live system telemetry">
+            <span class="tb-stat tb-status"><i class="dot dot-ok pulse" aria-hidden="true"></i><span id="sys-status-text">SYSTEM ONLINE</span></span>
+            <span class="tb-stat mono" title="CPU utilization"><span class="k">CPU</span><span class="v" id="tb-cpu">--</span></span>
+            <span class="tb-stat mono" title="Memory utilization"><span class="k">MEM</span><span class="v" id="tb-mem">--</span></span>
+            <span class="tb-stat mono" title="Network throughput"><span class="k">NET</span><span class="v" id="tb-net">--</span></span>
+        </div>
+
+        <div class="tb-group tb-right">
+            <span class="tb-stat mono tb-model" title="Active model"><span class="k">MODEL</span><span class="v" id="model-name-text">NONE</span></span>
+            <span class="tb-stat tb-conn" title="Backend link status">
+                <i class="dot conn-dot" id="conn-dot" aria-hidden="true"></i><span id="conn-text">CONNECTING</span>
+            </span>
+            <span class="state-pill" id="state-pill" title="Agent state">
+                <i class="dot pulse" id="state-dot" aria-hidden="true"></i><span id="top-state-text">READY</span>
+            </span>
+            <time class="tb-clock mono" id="clock" aria-label="Current time">--:--:--</time>
+            <button class="btn btn-danger hidden" id="stop-btn" data-action="stop" title="Abort current agent run">ABORT</button>
+            <button class="icon-btn tablet-only" id="hud-toggle" data-action="toggle-hud"
+                    aria-label="Toggle system status panel" aria-expanded="false" aria-controls="right-hud" title="System status">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- ==================== WORKSPACE ==================== -->
+    <div id="workspace">
+
+        <!-- ---------- LEFT NAVIGATION HUD ---------- -->
+        <nav id="left-nav" aria-label="Primary navigation">
+            <div class="nav-scroll">
+                <div class="nav-section">
+                    <div class="nav-label">HOME</div>
+                    <button class="nav-item is-active" data-view="dashboard" aria-current="page">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        <span>Dashboard</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="aicore">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+                        <span>AI Core</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="conversations">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span>Conversations</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-label">AGENT</div>
+                    <button class="nav-item" data-view="tasks">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        <span>Tasks</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="tools">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 0 5 5l-9.4 9.4a2.1 2.1 0 0 1-3-3z"/><path d="M14.7 6.3L18 3l3 3-3.3 3.3"/></svg>
+                        <span>Tools</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="memory">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="5" width="14" height="14" rx="1"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>
+                        <span>Memory</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="knowledge">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                        <span>Knowledge</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-label">SYSTEM</div>
+                    <button class="nav-item" data-view="monitor">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span>System Monitor</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="logs">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                        <span>Logs</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="config">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                        <span>Configuration</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-label">OTHER</div>
+                    <button class="nav-item" data-view="settings">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span>Settings</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                    <button class="nav-item" data-view="about">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <span>About</span><i class="nav-tick" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="nav-footer mono">
+                <span>SOCKET.IO</span><span id="nav-conn" class="ok">LINK…</span>
+            </div>
+        </nav>
+        <div id="nav-scrim" class="scrim hidden" data-action="toggle-nav" aria-hidden="true"></div>
+
+        <!-- ---------- CENTRAL AREA ---------- -->
+        <main id="center">
+            <div id="alert-zone" role="alert"></div>
+
+            <!-- Dashboard -->
+            <section id="view-dashboard" class="view is-active" aria-label="Dashboard">
+                <div class="core-stage" data-stage="dashboard">
+                    <div class="stream-col" id="stream-left" aria-hidden="true"></div>
+                    <div class="core-wrap">
+                        <canvas id="core-canvas" width="360" height="360" role="img"
+                                aria-label="Animated AI core visualization"></canvas>
+                        <div class="core-overlay">
+                            <div class="core-title">J.A.R.V.I.S.</div>
+                            <div class="core-state" id="core-state-text" aria-live="polite">READY</div>
+                            <div class="core-sub mono" id="core-sub-text">ALL SYSTEMS NOMINAL</div>
+                        </div>
+                    </div>
+                    <div class="stream-col right" id="stream-right" aria-hidden="true"></div>
+                    <div class="stage-readouts mono" aria-hidden="true">
+                        <span class="sr tl">STATE <b id="ro-state">IDLE</b></span>
+                        <span class="sr tr">CTX <b id="ro-ctx">0%</b></span>
+                        <span class="sr bl">UPTIME <b id="ro-uptime">00:00:00</b></span>
+                        <span class="sr br">LINK <b id="ro-link">SYNC</b></span>
+                    </div>
+                </div>
+
+                <div class="transcript-shell">
+                    <div class="transcript-head">
+                        <span class="th-title"><i class="dot dot-cyan" aria-hidden="true"></i>CONVERSATION / OUTPUT</span>
+                        <span class="th-actions">
+                            <button class="mini-btn" data-slash="/mode" title="Toggle PLAN / BUILD mode">MODE</button>
+                            <button class="mini-btn" data-slash="/compact" title="Summarize and shrink conversation">COMPACT</button>
+                            <button class="mini-btn" data-slash="/clear" title="Clear active conversation">CLEAR</button>
+                            <button class="mini-btn" data-slash="/tokens" title="Show token usage">TOKENS</button>
+                            <button class="mini-btn" data-slash="/help" title="Show available commands">HELP</button>
+                        </span>
+                    </div>
+                    <div id="chat-messages" class="transcript" tabindex="0" aria-label="Conversation transcript">
+                        <div class="welcome-msg">
+                            <div class="welcome-glyph" aria-hidden="true">
+                                <svg viewBox="0 0 64 64" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.4">
+                                    <circle cx="32" cy="32" r="26" stroke-dasharray="4 6"/>
+                                    <circle cx="32" cy="32" r="16"/>
+                                    <circle cx="32" cy="32" r="4" fill="currentColor" stroke="none"/>
+                                </svg>
+                            </div>
+                            <h1>J.A.R.V.I.S. ONLINE</h1>
+                            <p>Neural interface synchronized. Select a model and issue a command.</p>
+                            <p class="welcome-hints mono">
+                                <kbd>ENTER</kbd> TRANSMIT &nbsp;·&nbsp; <kbd>SHIFT+ENTER</kbd> NEW LINE &nbsp;·&nbsp; <kbd>/HELP</kbd> COMMANDS
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Core -->
+            <section id="view-aicore" class="view" aria-label="AI Core" hidden>
+                <div class="view-grid aicore-grid">
+                    <div class="core-stage tall stage-panel">
+                        <div class="stream-col" id="stream-left2" aria-hidden="true"></div>
+                        <div class="core-wrap">
+                            <canvas id="core-canvas-2" width="420" height="420" role="img" aria-label="AI core visualization"></canvas>
+                            <div class="core-overlay">
+                                <div class="core-title">J.A.R.V.I.S.</div>
+                                <div class="core-state" id="core-state-text-2">READY</div>
+                                <div class="core-sub mono" id="core-sub-text-2">ALL SYSTEMS NOMINAL</div>
+                            </div>
+                        </div>
+                        <div class="stream-col right" id="stream-right2" aria-hidden="true"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">STATE MACHINE</h2><span class="panel-tag mono" id="state-since">T+0.0s</span></div>
+                        <div class="panel-body">
+                            <ol class="state-flow" id="state-flow">
+                                <li data-s="idle" class="is-current">IDLE</li>
+                                <li data-s="listening">LISTENING</li>
+                                <li data-s="thinking">THINKING</li>
+                                <li data-s="executing">EXECUTING</li>
+                                <li data-s="responding">RESPONDING</li>
+                                <li data-s="error">ERROR</li>
+                            </ol>
+                            <dl class="kv-grid mono">
+                                <dt>STATE</dt><dd id="aic-state">idle</dd>
+                                <dt>AMBIENT</dt><dd id="aic-amp">0.00</dd>
+                                <dt>CORE LOAD</dt><dd id="aic-load">4%</dd>
+                                <dt>CYCLE</dt><dd id="aic-cycle">0</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">VOICE INTERFACE</h2><span class="panel-tag mono" id="voice-provider-tag">AUTO</span></div>
+                        <div class="panel-body voice-inline">
+                            <div class="wave-bars" id="voice-wave-2" aria-hidden="true"></div>
+                            <div class="voice-row">
+                                <span class="mono dim" id="voice-timer-2">00:00</span>
+                                <span class="mono voice-status" id="voice-status-2">STANDBY</span>
+                                <button class="btn btn-primary btn-sm" data-action="voice-start">INITIATE</button>
+                            </div>
+                            <p class="hint">Microphone input uses the Web Audio API. Transcription provider: <b id="voice-provider-name">detecting…</b></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Conversations -->
+            <section id="view-conversations" class="view" aria-label="Conversations" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <h2 class="panel-title">SAVED SESSIONS</h2>
+                            <span class="panel-actions">
+                                <button class="mini-btn" data-slash="/list">REFRESH</button>
+                                <button class="mini-btn" data-action="prompt-save">SAVE</button>
+                                <button class="mini-btn" data-action="prompt-load">LOAD</button>
+                                <button class="mini-btn" data-action="prompt-rename">RENAME</button>
+                            </span>
+                        </div>
+                        <div class="panel-body">
+                            <div id="session-list" class="session-list">
+                                <p class="empty">No session data. Request <span class="mono">/list</span> to enumerate saved conversations.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">CONTEXT CONTROL</h2></div>
+                        <div class="panel-body">
+                            <dl class="kv-grid mono">
+                                <dt>TOKENS</dt><dd id="cc-tokens">0</dd>
+                                <dt>CONTEXT</dt><dd id="cc-context">0 / 12,000</dd>
+                                <dt>USAGE</dt><dd id="cc-usage">0.0%</dd>
+                                <dt>MODE</dt><dd id="cc-mode">BUILD</dd>
+                                <dt>AUTO-SAVE</dt><dd id="cc-save">none</dd>
+                                <dt>WORKDIR</dt><dd id="cc-dir">—</dd>
+                            </dl>
+                            <div class="btn-row">
+                                <button class="btn btn-sm" data-slash="/compact">COMPACT</button>
+                                <button class="btn btn-sm" data-slash="/clear">CLEAR</button>
+                                <button class="btn btn-sm" data-slash="/tokens">TOKENS</button>
+                                <button class="btn btn-sm" data-action="prompt-save">SAVE AS…</button>
+                                <button class="btn btn-sm" data-action="prompt-load">LOAD…</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel span-all">
+                        <div class="panel-head"><h2 class="panel-title">TRANSCRIPT</h2><span class="panel-tag mono">LIVE</span></div>
+                        <div class="transcript-slot" id="slot-conversations"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tasks / Activity -->
+            <section id="view-tasks" class="view" aria-label="Tasks and activity" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <h2 class="panel-title">CURRENT OPERATION</h2>
+                            <span class="panel-tag mono" id="op-tag">IDLE</span>
+                        </div>
+                        <div class="panel-body">
+                            <div id="task-current" class="op-display">
+                                <p class="empty">No operation in progress.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <h2 class="panel-title">AGENT ACTIVITY</h2>
+                            <span class="panel-actions">
+                                <button class="mini-btn" data-action="activity-clear">CLEAR</button>
+                            </span>
+                        </div>
+                        <div class="panel-body">
+                            <div id="task-activity" class="activity-list" aria-live="polite">
+                                <p class="empty">Activity events will appear here.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel span-all">
+                        <div class="panel-head"><h2 class="panel-title">TOOL EXECUTION QUEUE</h2></div>
+                        <div class="panel-body">
+                            <div id="task-tools" class="tool-runs">
+                                <p class="empty">No tool executions recorded this session.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tools -->
+            <section id="view-tools" class="view" aria-label="Tools" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">TOOL REGISTRY</h2><span class="panel-tag mono" id="tool-count">0 ONLINE</span></div>
+                        <div class="panel-body">
+                            <ul id="tool-registry" class="tool-registry"></ul>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">EXECUTION HISTORY</h2><span class="panel-tag mono" id="tool-run-count">0 RUNS</span></div>
+                        <div class="panel-body">
+                            <div id="tool-history" class="tool-runs">
+                                <p class="empty">Tool executions will be visualized here.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Memory -->
+            <section id="view-memory" class="view" aria-label="Memory core" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel span-all">
+                        <div class="panel-head"><h2 class="panel-title">MEMORY CORE</h2><span class="panel-tag mono">NODE GRAPH</span></div>
+                        <div class="panel-body">
+                            <div class="memory-graph-wrap">
+                                <svg id="memory-graph" viewBox="0 0 760 300" role="img" aria-label="Memory node graph: user connected to preferences, projects, knowledge and context">
+                                    <defs>
+                                        <marker id="mg-dot" markerWidth="6" markerHeight="6" refX="3" refY="3">
+                                            <circle cx="3" cy="3" r="2" fill="var(--accent)"/>
+                                        </marker>
+                                    </defs>
+                                    <g class="mg-links" fill="none" stroke="var(--accent-2)" stroke-width="1.2" stroke-dasharray="6 5">
+                                        <path d="M380 150 L180 70"/>
+                                        <path d="M380 150 L180 230"/>
+                                        <path d="M380 150 L580 70"/>
+                                        <path d="M380 150 L580 230"/>
+                                        <path class="mg-live" d="M380 150 L680 150"/>
+                                    </g>
+                                    <g class="mg-node" data-node="user" transform="translate(380,150)">
+                                        <circle r="46" class="mg-halo"/>
+                                        <circle r="34" class="mg-body"/>
+                                        <text text-anchor="middle" dy="4">USER</text>
+                                    </g>
+                                    <g class="mg-node sm" data-node="preferences" transform="translate(180,70)">
+                                        <circle r="30" class="mg-body"/><text text-anchor="middle" dy="4">PREFS</text>
+                                    </g>
+                                    <g class="mg-node sm" data-node="projects" transform="translate(180,230)">
+                                        <circle r="30" class="mg-body"/><text text-anchor="middle" dy="4">PROJECTS</text>
+                                    </g>
+                                    <g class="mg-node sm" data-node="knowledge" transform="translate(580,70)">
+                                        <circle r="30" class="mg-body"/><text text-anchor="middle" dy="4">KNOW</text>
+                                    </g>
+                                    <g class="mg-node sm" data-node="context" transform="translate(580,230)">
+                                        <circle r="30" class="mg-body"/><text text-anchor="middle" dy="4">CONTEXT</text>
+                                    </g>
+                                    <g class="mg-node sm" data-node="session" transform="translate(680,150)">
+                                        <circle r="22" class="mg-body"/><text text-anchor="middle" dy="4">LIVE</text>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">SHORT TERM</h2><span class="panel-tag mono">VOLATILE</span></div>
+                        <div class="panel-body">
+                            <dl class="kv-grid mono">
+                                <dt>MESSAGES</dt><dd id="mem-messages">0</dd>
+                                <dt>TOKENS</dt><dd id="mem-tokens">0</dd>
+                                <dt>ACTIVE SAVE</dt><dd id="mem-save">none</dd>
+                                <dt>LAST TOOL</dt><dd id="mem-tool">—</dd>
+                            </dl>
+                            <p class="hint">Current conversation buffer, recent tool executions and in-flight reasoning.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">LONG TERM</h2><span class="panel-tag mono">PERSISTED</span></div>
+                        <div class="panel-body">
+                            <dl class="kv-grid mono">
+                                <dt>SESSIONS</dt><dd id="mem-sessions">0</dd>
+                                <dt>PROJECT DIR</dt><dd id="mem-dir">—</dd>
+                                <dt>MODEL</dt><dd id="mem-model">—</dd>
+                                <dt>MAX RETRIES</dt><dd id="mem-retries">5</dd>
+                            </dl>
+                            <p class="hint">Saved conversations, user preferences and project knowledge persisted on disk.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Knowledge -->
+            <section id="view-knowledge" class="view" aria-label="Knowledge" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">ACTIVE KNOWLEDGE CONTEXT</h2></div>
+                        <div class="panel-body">
+                            <dl class="kv-grid mono">
+                                <dt>MODEL</dt><dd id="kn-model">—</dd>
+                                <dt>MODE</dt><dd id="kn-mode">BUILD</dd>
+                                <dt>CONTEXT WINDOW</dt><dd id="kn-ctx">12,000</dd>
+                                <dt>TOKENS USED</dt><dd id="kn-tokens">0</dd>
+                                <dt>WORKDIR</dt><dd id="kn-dir">—</dd>
+                                <dt>RETRIES</dt><dd id="kn-retries">5</dd>
+                            </dl>
+                            <p class="hint" id="kn-mode-desc">BUILD mode: the agent generates and executes Python to accomplish tasks on the local machine.</p>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">KNOWLEDGE ARTIFACTS</h2><span class="panel-tag mono" id="kn-count">0</span></div>
+                        <div class="panel-body">
+                            <ul id="kn-artifacts" class="artifact-list">
+                                <p class="empty">Saved sessions become retrievable knowledge artifacts.</p>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="panel span-all">
+                        <div class="panel-head"><h2 class="panel-title">SYSTEM INSTRUCTIONS</h2></div>
+                        <div class="panel-body">
+                            <pre class="instruction-block mono" id="kn-instructions">Operating mode instructions are loaded from the agent backend.
+Switch modes from the Configuration screen to inspect the active instruction set.</pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Monitor -->
+            <section id="view-monitor" class="view" aria-label="System monitor" hidden>
+                <div class="view-grid monitor-grid">
+                    <div class="panel stat-card">
+                        <div class="panel-head"><h2 class="panel-title">PROCESSES</h2></div>
+                        <div class="panel-body"><span class="stat-num mono" id="mt-proc">--</span><span class="stat-unit mono">ACTIVE</span></div>
+                    </div>
+                    <div class="panel stat-card">
+                        <div class="panel-head"><h2 class="panel-title">TEMPERATURE</h2></div>
+                        <div class="panel-body"><span class="stat-num mono" id="mt-temp">--</span><span class="stat-unit mono">°C</span></div>
+                    </div>
+                    <div class="panel stat-card">
+                        <div class="panel-head"><h2 class="panel-title">AGENT LATENCY</h2></div>
+                        <div class="panel-body"><span class="stat-num mono" id="mt-latency">--</span><span class="stat-unit mono">MS</span></div>
+                    </div>
+                    <div class="panel stat-card">
+                        <div class="panel-head"><h2 class="panel-title">TOKEN RATE</h2></div>
+                        <div class="panel-body"><span class="stat-num mono" id="mt-tps">--</span><span class="stat-unit mono">TOK/S</span></div>
+                    </div>
+
+                    <div class="panel chart-panel">
+                        <div class="panel-head"><h2 class="panel-title">CPU UTILIZATION</h2><span class="panel-tag mono" id="cl-cpu">--</span></div>
+                        <div class="panel-body"><canvas class="chart" id="chart-cpu" height="150" role="img" aria-label="CPU utilization chart"></canvas></div>
+                    </div>
+                    <div class="panel chart-panel">
+                        <div class="panel-head"><h2 class="panel-title">MEMORY UTILIZATION</h2><span class="panel-tag mono" id="cl-mem">--</span></div>
+                        <div class="panel-body"><canvas class="chart" id="chart-mem" height="150" role="img" aria-label="Memory utilization chart"></canvas></div>
+                    </div>
+                    <div class="panel chart-panel">
+                        <div class="panel-head"><h2 class="panel-title">GPU LOAD</h2><span class="panel-tag mono" id="cl-gpu">--</span></div>
+                        <div class="panel-body"><canvas class="chart" id="chart-gpu" height="150" role="img" aria-label="GPU load chart"></canvas></div>
+                    </div>
+                    <div class="panel chart-panel">
+                        <div class="panel-head"><h2 class="panel-title">NETWORK I/O</h2><span class="panel-tag mono" id="cl-net">--</span></div>
+                        <div class="panel-body"><canvas class="chart" id="chart-net" height="150" role="img" aria-label="Network throughput chart"></canvas></div>
+                    </div>
+                    <div class="panel chart-panel span-all">
+                        <div class="panel-head"><h2 class="panel-title">DISK UTILIZATION</h2><span class="panel-tag mono" id="cl-disk">--</span></div>
+                        <div class="panel-body"><canvas class="chart" id="chart-disk" height="120" role="img" aria-label="Disk utilization chart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Logs -->
+            <section id="view-logs" class="view" aria-label="System logs" hidden>
+                <div class="panel logs-panel">
+                    <div class="panel-head">
+                        <h2 class="panel-title">SYSTEM LOG</h2>
+                        <span class="panel-actions log-toolbar">
+                            <button class="chip is-on mono" data-level="INFO" aria-pressed="true">INFO</button>
+                            <button class="chip is-on mono" data-level="DEBUG" aria-pressed="true">DEBUG</button>
+                            <button class="chip is-on mono" data-level="WARNING" aria-pressed="true">WARNING</button>
+                            <button class="chip is-on mono" data-level="ERROR" aria-pressed="true">ERROR</button>
+                            <input type="search" id="log-search" class="search-input mono" placeholder="SEARCH LOGS…" aria-label="Search logs">
+                            <button class="chip is-on mono" id="log-autoscroll" aria-pressed="true">AUTO-SCROLL</button>
+                            <button class="mini-btn" data-action="clear-logs">CLEAR</button>
+                        </span>
+                    </div>
+                    <div class="panel-body log-body">
+                        <div id="log-viewer" class="log-viewer mono" tabindex="0" aria-label="Log entries">
+                            <p class="empty">Log stream initialized. Awaiting events…</p>
+                        </div>
+                        <div class="log-foot mono"><span id="log-count">0 ENTRIES</span><span id="log-shown">0 SHOWN</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Configuration -->
+            <section id="view-config" class="view" aria-label="Configuration" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">MODEL</h2><span class="panel-tag mono" id="cfg-conn">LINK</span></div>
+                        <div class="panel-body">
+                            <label class="field-label" for="cfg-model">ACTIVE MODEL</label>
+                            <div class="row-gap">
+                                <select id="cfg-model" class="field-input mono"><option value="">— no models loaded —</option></select>
+                                <button class="btn btn-sm" data-action="fetch-models">FETCH</button>
+                            </div>
+                            <label class="field-label" for="cfg-ctx">CONTEXT WINDOW</label>
+                            <input type="number" id="cfg-ctx" class="field-input mono" value="12000" min="512" max="131072">
+                            <p class="hint">Maximum context length is clamped automatically from model metadata.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">WORKSPACE</h2></div>
+                        <div class="panel-body">
+                            <label class="field-label" for="cfg-dir">PROJECT DIRECTORY</label>
+                            <div class="row-gap">
+                                <input type="text" id="cfg-dir" class="field-input mono" placeholder="C:\path\to\project" autocomplete="off" spellcheck="false">
+                                <button class="btn btn-sm" data-action="browse-dir">BROWSE</button>
+                            </div>
+                            <p class="hint">The agent operates inside this folder unless instructed otherwise.</p>
+                            <label class="field-label" for="cfg-retries">MAX ITERATIONS</label>
+                            <div class="row-gap">
+                                <input type="number" id="cfg-retries" class="field-input mono" value="5" min="1" max="50">
+                                <button class="btn btn-sm" data-action="apply-retries">APPLY</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">OPERATING MODE</h2></div>
+                        <div class="panel-body">
+                            <div class="mode-select" role="group" aria-label="Operating mode">
+                                <button class="mode-opt" data-slash="/plan"><b>PLAN</b><span>Analyze and strategize only. No code execution.</span></button>
+                                <button class="mode-opt" data-slash="/build"><b>BUILD</b><span>Generate and execute Python against the local machine.</span></button>
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn btn-sm" data-slash="/mode">TOGGLE</button>
+                                <button class="btn btn-sm" data-action="prompt-retries">SET RETRIES…</button>
+                                <button class="btn btn-sm" data-slash="/help">HELP</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">APPLY CONFIGURATION</h2></div>
+                        <div class="panel-body">
+                            <p class="hint">Configuration is pushed to the agent session over the control channel.</p>
+                            <div class="btn-row">
+                                <button class="btn btn-primary" data-action="apply-config">TRANSMIT CONFIG</button>
+                            </div>
+                            <dl class="kv-grid mono" style="margin-top:14px;">
+                                <dt>SESSION</dt><dd id="cfg-session">—</dd>
+                                <dt>TRANSPORT</dt><dd id="cfg-transport">—</dd>
+                                <dt>SAVE FILE</dt><dd id="cfg-save">none</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings -->
+            <section id="view-settings" class="view" aria-label="Settings" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">INTERFACE</h2></div>
+                        <div class="panel-body">
+                            <label class="toggle-row"><input type="checkbox" id="set-motion" checked><span>HUD animations</span><span class="toggle-hint mono">core, pulses, transitions</span></label>
+                            <label class="toggle-row"><input type="checkbox" id="set-scanlines" checked><span>Scan lines &amp; grid</span><span class="toggle-hint mono">overlay effects</span></label>
+                            <label class="toggle-row"><input type="checkbox" id="set-autoscroll" checked><span>Auto-scroll transcript</span><span class="toggle-hint mono">follow output</span></label>
+                            <label class="field-label" for="set-density">TELEMETRY RATE</label>
+                            <select id="set-density" class="field-input mono">
+                                <option value="1000">1000 MS — STANDARD</option>
+                                <option value="2000">2000 MS — ECONOMY</option>
+                                <option value="500">500 MS — HIGH RESOLUTION</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">VOICE</h2></div>
+                        <div class="panel-body">
+                            <label class="field-label" for="set-voice">TRANSCRIPTION PROVIDER</label>
+                            <select id="set-voice" class="field-input mono">
+                                <option value="auto">AUTO — BROWSER IF AVAILABLE</option>
+                                <option value="browser">BROWSER SPEECH RECOGNITION</option>
+                                <option value="none">DISABLED — WAVEFORM ONLY</option>
+                            </select>
+                            <p class="hint">When browser recognition is unavailable, the microphone waveform still runs and a backend voice service can be attached later through the same provider interface.</p>
+                            <div class="btn-row">
+                                <button class="btn btn-sm" data-action="voice-start">TEST VOICE INPUT</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel span-all">
+                        <div class="panel-head"><h2 class="panel-title">PERSISTENCE</h2></div>
+                        <div class="panel-body">
+                            <div class="btn-row">
+                                <button class="btn btn-sm" data-action="settings-reset">RESET TO DEFAULTS</button>
+                            </div>
+                            <p class="hint">Interface preferences are stored locally in this browser.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- About -->
+            <section id="view-about" class="view" aria-label="About" hidden>
+                <div class="view-grid cols-2">
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">SYSTEM IDENTITY</h2></div>
+                        <div class="panel-body">
+                            <div class="about-brand">
+                                <span class="brand-hex" aria-hidden="true">
+                                    <svg viewBox="0 0 32 32" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.4">
+                                        <polygon points="16,2 28,9 28,23 16,30 4,23 4,9"/><circle cx="16" cy="16" r="5.5"/><circle cx="16" cy="16" r="1.6" fill="currentColor" stroke="none"/>
+                                    </svg>
+                                </span>
+                                <div>
+                                    <div class="brand-name">J.A.R.V.I.S.</div>
+                                    <div class="brand-sub">PERSONAL ARTIFICIAL INTELLIGENCE SYSTEM</div>
+                                </div>
+                            </div>
+                            <dl class="kv-grid mono">
+                                <dt>BUILD</dt><dd>MyAgentApp-V2.0.1</dd>
+                                <dt>INTERFACE</dt><dd>HUD CONSOLE / VANILLA JS</dd>
+                                <dt>BACKEND</dt><dd>FLASK + SOCKET.IO</dd>
+                                <dt>ENGINE</dt><dd>OLLAMA LOCAL LLM</dd>
+                                <dt>UPTIME</dt><dd id="about-uptime">00:00:00</dd>
+                                <dt>LINK</dt><dd id="about-link">—</dd>
+                            </dl>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-head"><h2 class="panel-title">OPERATOR MANUAL</h2></div>
+                        <div class="panel-body">
+                            <ul class="manual-list mono">
+                                <li><kbd>ENTER</kbd> transmit command</li>
+                                <li><kbd>SHIFT+ENTER</kbd> new line</li>
+                                <li><kbd>ESC</kbd> close overlays</li>
+                                <li><kbd>/HELP</kbd> agent command list</li>
+                                <li><kbd>/MODE</kbd> toggle plan / build</li>
+                            </ul>
+                            <p class="hint">All agent operations stream over Socket.IO. Tool executions appear in the activity stream and tool registry in real time.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ---------- RIGHT SYSTEM HUD ---------- -->
+        <aside id="right-hud" aria-label="System status panel">
+            <div class="hud-head">
+                <span>SYSTEM STATUS</span>
+                <button class="icon-btn tablet-only" data-action="toggle-hud" aria-label="Close system status panel" title="Close">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <section class="panel" aria-label="Agent status">
+                <div class="panel-head"><h2 class="panel-title">AGENT STATUS</h2><span class="panel-tag mono" id="hud-agent-tag">ONLINE</span></div>
+                <div class="panel-body">
+                    <dl class="kv-grid mono">
+                        <dt>STATE</dt><dd id="hud-state">● IDLE</dd>
+                        <dt>MODEL</dt><dd id="hud-model">—</dd>
+                        <dt>MODE</dt><dd id="hud-mode">BUILD</dd>
+                        <dt>LATENCY</dt><dd id="hud-latency">—</dd>
+                        <dt>TOK/S</dt><dd id="hud-tps">—</dd>
+                    </dl>
+                    <div class="ctx-row mono">
+                        <span>CONTEXT</span>
+                        <div class="bar"><i id="hud-ctx-bar" style="width:0%"></i></div>
+                        <b id="hud-ctx">0 / 12.0K</b>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" aria-label="System metrics">
+                <div class="panel-head"><h2 class="panel-title">SYSTEM METRICS</h2>
+                    <span class="panel-tag mono sim-tag" title="Telemetry source: local simulation service. Replace with backend metrics endpoint when available.">SIM</span>
+                </div>
+                <div class="panel-body metrics-body">
+                    <div class="metric" data-metric="cpu"><span class="m-label mono">CPU</span><div class="bar"><i style="width:0%"></i></div><b class="m-val mono">--</b></div>
+                    <div class="metric" data-metric="mem"><span class="m-label mono">MEM</span><div class="bar"><i style="width:0%"></i></div><b class="m-val mono">--</b></div>
+                    <div class="metric" data-metric="gpu"><span class="m-label mono">GPU</span><div class="bar"><i style="width:0%"></i></div><b class="m-val mono">--</b></div>
+                    <div class="metric" data-metric="disk"><span class="m-label mono">DSK</span><div class="bar"><i style="width:0%"></i></div><b class="m-val mono">--</b></div>
+                    <div class="metric" data-metric="net"><span class="m-label mono">NET</span><div class="bar"><i style="width:0%"></i></div><b class="m-val mono">--</b></div>
+                </div>
+            </section>
+
+            <section class="panel" aria-label="Active tools">
+                <div class="panel-head"><h2 class="panel-title">ACTIVE TOOLS</h2><span class="panel-tag mono" id="hud-tool-count">0</span></div>
+                <div class="panel-body">
+                    <ul id="hud-tools" class="tool-mini-list"></ul>
+                </div>
+            </section>
+
+            <section class="panel" aria-label="Current operation">
+                <div class="panel-head"><h2 class="panel-title">CURRENT OPERATION</h2></div>
+                <div class="panel-body">
+                    <div id="hud-op" class="op-display compact"><p class="empty">IDLE — no operation.</p></div>
+                </div>
+            </section>
+
+            <section class="panel panel-grow" aria-label="Agent activity">
+                <div class="panel-head"><h2 class="panel-title">AGENT ACTIVITY</h2><span class="panel-tag mono" id="hud-act-count">0</span></div>
+                <div class="panel-body">
+                    <div id="hud-activity" class="activity-list compact"></div>
+                </div>
+            </section>
+        </aside>
+        <div id="hud-scrim" class="scrim hidden" data-action="toggle-hud" aria-hidden="true"></div>
+    </div>
+
+    <!-- ==================== COMMAND BAR ==================== -->
+    <footer id="command-bar">
+        <form id="command-form" autocomplete="off" novalidate>
+            <span class="cmd-prompt mono" aria-hidden="true">›</span>
+            <label class="sr-only" for="user-input">Command input</label>
+            <textarea id="user-input" rows="1" placeholder="Ask J.A.R.V.I.S. something…"
+                      spellcheck="false" aria-describedby="cmd-hints"></textarea>
+            <div class="cmd-actions">
+                <button type="button" class="icon-btn" id="voice-btn" data-action="voice-start"
+                        aria-label="Start voice input" title="Voice input">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+                </button>
+                <button type="button" class="btn btn-transmit" id="send-btn" data-action="send">
+                    <span class="btn-label">TRANSMIT</span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </form>
+        <div class="cmd-meta mono" id="cmd-hints">
+            <span><kbd>ENTER</kbd> / <kbd>CTRL+ENTER</kbd> TRANSMIT · <kbd>SHIFT+ENTER</kbd> NEW LINE</span>
+            <span id="cmd-state" class="dim">STANDBY</span>
+        </div>
+    </footer>
+</div>
+
+<!-- ==================== VOICE OVERLAY ==================== -->
+<div id="voice-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="voice-title">
+    <div class="voice-panel">
+        <div class="voice-head mono" id="voice-title"><i class="dot pulse" aria-hidden="true"></i>VOICE INPUT CHANNEL</div>
+        <button class="voice-mic" id="voice-mic" data-action="voice-toggle" aria-label="Toggle microphone capture">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+        </button>
+        <div class="voice-status mono" id="voice-status" aria-live="polite">INITIALIZING…</div>
+        <div class="wave-bars" id="voice-wave" aria-hidden="true"></div>
+        <div class="voice-timer mono" id="voice-timer">00:00</div>
+        <div class="voice-transcript mono" id="voice-transcript" aria-live="polite"></div>
+        <div class="voice-actions">
+            <button class="btn btn-sm" data-action="voice-cancel">CANCEL</button>
+            <button class="btn btn-primary btn-sm" data-action="voice-confirm" id="voice-confirm-btn">USE TEXT</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div id="modal-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="modal-title" class="mono">PROMPT</h3>
+            <button class="icon-btn" data-action="close-modal" aria-label="Close dialog">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-foot" id="modal-footer"></div>
+    </div>
+</div>
+
+<div id="setup-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="setup-title" class="mono">SYSTEM INITIALIZATION — SELECT MODEL</h3>
+            <button class="icon-btn" data-action="close-setup" aria-label="Close dialog">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <label class="field-label" for="setup-model-select">AVAILABLE MODELS</label>
+            <select id="setup-model-select" class="field-input mono"></select>
+            <label class="field-label" for="setup-dir-input">PROJECT DIRECTORY</label>
+            <div class="row-gap">
+                <input type="text" id="setup-dir-input" class="field-input mono" placeholder="C:\path\to\project" autocomplete="off" spellcheck="false" title="Agent working directory">
+                <button type="button" class="btn btn-sm" data-action="browse-dir-setup" title="Choose folder">BROWSE</button>
+            </div>
+            <p class="hint">The agent will work inside this folder unless asked otherwise.</p>
+            <label class="field-label" for="setup-ctx-input">CONTEXT WINDOW SIZE</label>
+            <input type="number" id="setup-ctx-input" class="field-input mono" value="12000" min="512" max="131072">
+            <p class="hint">Maximum context length will be determined automatically.</p>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-primary" data-action="confirm-setup">INITIALIZE</button>
+        </div>
+    </div>
+</div>
+
+<div id="rename-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rename-title">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="rename-title" class="mono">RENAME CONVERSATION</h3>
+            <button class="icon-btn" data-action="close-rename" aria-label="Close dialog">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <label class="field-label" for="rename-old-select">SESSION</label>
+            <select id="rename-old-select" class="field-input mono"></select>
+            <label class="field-label" for="rename-new-input">NEW NAME</label>
+            <input type="text" id="rename-new-input" class="field-input mono" placeholder="Enter new name">
+        </div>
+        <div class="modal-foot">
+            <button class="btn" data-action="close-rename">CANCEL</button>
+            <button class="btn btn-primary" data-action="confirm-rename">RENAME</button>
+        </div>
+    </div>
+</div>
+
+<div id="state-announcer" class="sr-only" role="status" aria-live="polite"></div>
+<noscript><p style="padding:20px;color:#E8F7FF;">J.A.R.V.I.S. console requires JavaScript.</p></noscript>
+
+<script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
