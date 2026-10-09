@@ -16,6 +16,7 @@
 *Preprequisites*: 
 * Make sure you have the Ollama up and running.
 * Download the model you wanna use with **MyAgent** harness.
+
 *Steps*:
 1. Install The Dependencies Inside The `./WebApp/requirements.txt` file using the command `pip3 install -r requirements.txt`.
 2. cd into `./WebApp/` Run the App Using `py app.py` or `python3 app.py`.
@@ -27,6 +28,7 @@
 *Preprequisites*: 
 * Make sure you have the Ollama up and running.
 * Download the model you wanna use with **MyAgent** harness.
+
 *Steps*:
 1. Install The Dependencies Inside The `./CLI/requirements.txt` file using the command `pip3 install -r requirements.txt`.
 2. cd into `./CLI/` Run the App Using `py MyAgentV2.0.1.py` or `python3 MyAgentV2.0.1.py`.
