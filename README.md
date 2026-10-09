@@ -23,6 +23,7 @@
 3. Open the Browser and goto `http://localhost:5000`.
 4. Choose the Ollama Model, Working Project Directory and the Context Window Size right at the start.
 5. Start talking with the Agent.
+6. Use /help to get all available functions that you can use.
 
 ## Steps For Running The CLI:
 *Preprequisites*: 
